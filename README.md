@@ -2,7 +2,7 @@
 
 Example mlx-swift programs.
 
-## MLXChat
+## MLXChat macOS SwiftUI App
 
 A macOS SwiftUI Application for prompting LLM Model. The LLM Model text generation is run a different XPC Process so it won't affect UI performance of main App Process.
 
