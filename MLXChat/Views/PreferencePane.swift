@@ -36,9 +36,7 @@ struct PreferencePane: View {
                             Text(model.relativeString)
                         } else {
                             Text("No LLM Folder Selected")
-                        }
-                        
-                        
+                        }                        
                     }
                     .padding(.bottom, 24)
                 

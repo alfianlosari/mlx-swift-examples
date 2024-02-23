@@ -70,7 +70,6 @@ struct ContentView: View {
                             .foregroundColor(.red)
                             
                     }.buttonStyle(.borderless)
-    //                DotLoadingView().frame(width: 60, height: 30)
                 } else {
                     Button {
                         Task { @MainActor in
@@ -83,6 +82,7 @@ struct ContentView: View {
                             .rotationEffect(.degrees(45))
                             .font(.system(size: 30))
                     }
+                    .padding(.top, -4)
                     .buttonStyle(.borderless)
                     .keyboardShortcut(.defaultAction)
                     .foregroundColor(.accentColor)

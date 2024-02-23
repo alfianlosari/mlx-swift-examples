@@ -24,21 +24,16 @@ struct HeaderView: View {
         
             Spacer()
             
-            Button {
+            Button("Clear list", role: .destructive) {
                 guard !vm.isPrompting else { return }
                 vm.clearMessages()
-            } label: {
-                Image(systemName: "trash")
-                    .symbolRenderingMode(.multicolor)
-                    .font(.system(size: 24))
-            }.buttonStyle(.borderless)
+            }.font(.system(size: 14))
             
             SettingsLink {
                 Image(systemName: "gearshape")
                     .symbolRenderingMode(.multicolor)
-                    .font(.system(size: 24))
+                    .font(.system(size: 14))
             }
-            
         }
         .padding()
 
