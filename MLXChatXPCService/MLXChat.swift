@@ -15,11 +15,8 @@ class MLXChat {
     var maxTokens: Int
     var temperature: Float
     var seed: UInt64
-    
     var isCancelled = false
-//    quantized-gemma-7b-it
-//    Mistral-7B-v0.1-hf-4bit-mlx
-//    CodeLlama-7b-Python-4bit-MLX
+
     init(maxTokens: Int = 500, temperature: Float = 0.0, seed: UInt64 = 0) {
         self.maxTokens = maxTokens
         self.temperature = temperature

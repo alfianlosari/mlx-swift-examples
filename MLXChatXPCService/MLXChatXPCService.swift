@@ -9,7 +9,6 @@ import Foundation
 
 class MLXChatXPCService: NSObject, NSXPCListenerDelegate, MLXChatXPCServiceProtocol {
 
-    
     let listener : NSXPCListener
     var connection : NSXPCConnection?
     var mlxChat: MLXChat?
@@ -67,13 +66,9 @@ class MLXChatXPCService: NSObject, NSXPCListenerDelegate, MLXChatXPCServiceProto
         }
     }
     
-
-
-    
     @objc func stopResponse() {
         self.mlxChat?.isCancelled = true
     }
 }
-
 
 extension String: Error {}

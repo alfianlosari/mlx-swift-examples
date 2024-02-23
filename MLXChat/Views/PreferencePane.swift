@@ -27,7 +27,6 @@ struct PreferencePane: View {
                             switch result {
                             case .success(let url):
                                 vm.model = url
-                                print(url.relativePath)
                             case .failure(let error):
                                 print(error.localizedDescription)
                             }
