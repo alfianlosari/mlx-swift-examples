@@ -6,9 +6,9 @@ import MLXNN
 
 // port of https://github.com/ml-explore/mlx-examples/blob/main/llms/mlx_lm/models/llama.py
 
-private class Attention: Module {
+public class Attention: Module {
 
-    let args: LlamaConfiguration
+    let args: Configuration
     let repeats: Int
     let scale: Float
 
@@ -19,7 +19,7 @@ private class Attention: Module {
 
     let rope: RoPE
 
-    public init(_ args: LlamaConfiguration) {
+    public init(_ args: Configuration) {
         self.args = args
 
         let dim = args.hiddenSize
@@ -69,9 +69,15 @@ private class Attention: Module {
         keys = keys.reshaped(B, L, args.kvHeads, -1).transposed(0, 2, 1, 3)
         values = values.reshaped(B, L, args.kvHeads, -1).transposed(0, 2, 1, 3)
 
+        func repeated(_ a: MLXArray) -> MLXArray {
+            let expanded = expandedDimensions(a, axis: 2)
+            return concatenated(Array(repeating: expanded, count: self.repeats), axis: 2)
+                .reshaped(B, args.attentionHeads, L, -1)
+        }
+
         if repeats > 1 {
-            keys = MLXArray.repeat(keys, count: repeats, axis: 1)
-            values = MLXArray.repeat(values, count: repeats, axis: 1)
+            keys = repeated(keys)
+            values = repeated(values)
         }
 
         if let (keyCache, valueCache) = cache {
@@ -97,7 +103,7 @@ private class Attention: Module {
     }
 }
 
-private class MLP: Module, UnaryLayer {
+public class MLP: Module, UnaryLayer {
 
     @ModuleInfo(key: "gate_proj") var gate: Linear
     @ModuleInfo(key: "down_proj") var down: Linear
@@ -114,7 +120,7 @@ private class MLP: Module, UnaryLayer {
     }
 }
 
-private class TransformerBlock: Module {
+public class TransformerBlock: Module {
 
     @ModuleInfo(key: "self_attn") var attention: Attention
     let mlp: MLP
@@ -122,7 +128,7 @@ private class TransformerBlock: Module {
     @ModuleInfo(key: "input_layernorm") var inputLayerNorm: RMSNorm
     @ModuleInfo(key: "post_attention_layernorm") var postAttentionLayerNorm: RMSNorm
 
-    public init(_ args: LlamaConfiguration) {
+    public init(_ args: Configuration) {
         self._attention.wrappedValue = Attention(args)
         self.mlp = MLP(dimensions: args.hiddenSize, hiddenDimensions: args.intermediateSize)
         self._inputLayerNorm.wrappedValue = RMSNorm(
@@ -142,14 +148,14 @@ private class TransformerBlock: Module {
     }
 }
 
-public class LlamaModelInner: Module {
+public class LlamaModel: Module {
 
     @ModuleInfo(key: "embed_tokens") var embedTokens: Embedding
 
-    fileprivate let layers: [TransformerBlock]
+    let layers: [TransformerBlock]
     let norm: RMSNorm
 
-    public init(_ args: LlamaConfiguration) {
+    public init(_ args: Configuration) {
         precondition(args.vocabularySize > 0)
 
         self._embedTokens.wrappedValue = Embedding(
@@ -185,79 +191,21 @@ public class LlamaModelInner: Module {
     }
 }
 
-public class LlamaModel: Module, LLMModel {
+public class Model: Module {
 
-    let model: LlamaModelInner
+    let model: LlamaModel
 
     @ModuleInfo(key: "lm_head") var lmHead: Linear
 
-    public init(_ args: LlamaConfiguration) {
-        self.model = LlamaModelInner(args)
+    public init(_ args: Configuration) {
+        self.model = LlamaModel(args)
         self._lmHead.wrappedValue = Linear(args.hiddenSize, args.vocabularySize, bias: false)
     }
 
-    public func callAsFunction(_ inputs: MLXArray, cache: [(MLXArray, MLXArray)]?) -> (
+    public func callAsFunction(_ inputs: MLXArray, cache: [(MLXArray, MLXArray)]? = nil) -> (
         MLXArray, [(MLXArray, MLXArray)]
     ) {
         let (out, cache) = model(inputs, cache: cache)
         return (lmHead(out), cache)
-    }
-}
-
-public struct LlamaConfiguration: Codable {
-
-    var hiddenSize: Int
-    var hiddenLayers: Int
-    var intermediateSize: Int
-    var attentionHeads: Int
-    var rmsNormEps: Float
-    var vocabularySize: Int
-    var kvHeads: Int
-    var ropeTheta: Float = 10_000
-    var ropeTraditional: Bool = false
-    var ropeScaling: [String: StringOrNumber]? = nil
-
-    enum CodingKeys: String, CodingKey {
-        case hiddenSize = "hidden_size"
-        case hiddenLayers = "num_hidden_layers"
-        case intermediateSize = "intermediate_size"
-        case attentionHeads = "num_attention_heads"
-        case rmsNormEps = "rms_norm_eps"
-        case vocabularySize = "vocab_size"
-        case kvHeads = "num_key_value_heads"
-        case ropeTheta = "rope_theta"
-        case ropeTraditional = "rope_traditional"
-        case ropeScaling = "rope_scaling"
-    }
-
-    public init(from decoder: Decoder) throws {
-        // custom implementation to handle optional keys with required values
-        let container: KeyedDecodingContainer<LlamaConfiguration.CodingKeys> =
-            try decoder.container(
-                keyedBy: LlamaConfiguration.CodingKeys.self)
-
-        self.hiddenSize = try container.decode(
-            Int.self, forKey: LlamaConfiguration.CodingKeys.hiddenSize)
-        self.hiddenLayers = try container.decode(
-            Int.self, forKey: LlamaConfiguration.CodingKeys.hiddenLayers)
-        self.intermediateSize = try container.decode(
-            Int.self, forKey: LlamaConfiguration.CodingKeys.intermediateSize)
-        self.attentionHeads = try container.decode(
-            Int.self, forKey: LlamaConfiguration.CodingKeys.attentionHeads)
-        self.rmsNormEps = try container.decode(
-            Float.self, forKey: LlamaConfiguration.CodingKeys.rmsNormEps)
-        self.vocabularySize = try container.decode(
-            Int.self, forKey: LlamaConfiguration.CodingKeys.vocabularySize)
-        self.kvHeads = try container.decode(Int.self, forKey: LlamaConfiguration.CodingKeys.kvHeads)
-        self.ropeTheta =
-            try container.decodeIfPresent(
-                Float.self, forKey: LlamaConfiguration.CodingKeys.ropeTheta)
-            ?? 10_000
-        self.ropeTraditional =
-            try container.decodeIfPresent(
-                Bool.self, forKey: LlamaConfiguration.CodingKeys.ropeTraditional) ?? false
-        self.ropeScaling = try container.decodeIfPresent(
-            [String: StringOrNumber].self, forKey: LlamaConfiguration.CodingKeys.ropeScaling)
-
     }
 }

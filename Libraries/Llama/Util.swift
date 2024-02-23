@@ -2,34 +2,23 @@
 
 import AsyncAlgorithms
 import Foundation
-import Hub
 import MLX
 import MLXNN
 import MLXRandom
-import Tokenizers
+@_exported import SentencePiece
 
 /// Load and return the model and tokenizer
-public func load(
-    hub: HubApi = HubApi(), name: String, progressHandler: @escaping (Progress) -> Void = { _ in }
-) async throws -> (LLMModel, Tokenizer) {
-    // note: this doesn't have a way to pass the HubApi
-    let tokenizer = try await AutoTokenizer.from(pretrained: name)
+public func load(modelDirectory: URL) throws -> (Model, SentencePiece) {
+    let tokenizer = try SentencePiece(model: modelDirectory.appending(component: "tokenizer.model"))
 
-    // download the model weights and config
-    let repo = Hub.Repo(id: name)
-    let modelFiles = ["config.json", "weights.00.safetensors"]
-    let modelDirectory = try await hub.snapshot(
-        from: repo, matching: modelFiles, progressHandler: progressHandler)
-
-    // create the model (no weights loaded)
+    // load the model parameters
     let configurationURL = modelDirectory.appending(component: "config.json")
-    let baseConfig = try JSONDecoder().decode(
-        BaseConfiguration.self, from: Data(contentsOf: configurationURL))
-
-    let model = try baseConfig.modelType.createModel(configuration: configurationURL)
+    let configuration = try JSONDecoder().decode(
+        Configuration.self, from: Data(contentsOf: configurationURL))
 
     // set up the model
-    if let quantization = baseConfig.quantization {
+    let model = Model(configuration)
+    if let quantization = configuration.quantization {
         QuantizedLinear.quantize(
             model: model, groupSize: quantization.groupSize, bits: quantization.bits)
     }
@@ -55,7 +44,7 @@ private func sample(logits: MLXArray, temp: Float) -> MLXArray {
 ///
 /// Port of `generate_step()` from https://github.com/ml-explore/mlx-examples/blob/main/llms/mlx_lm/utils.py
 public struct TokenIterator: Sequence, IteratorProtocol {
-    let model: LLMModel
+    let model: Model
     let temp: Float
 
     var y: MLXArray
@@ -63,7 +52,7 @@ public struct TokenIterator: Sequence, IteratorProtocol {
 
     var first = true
 
-    public init(prompt: MLXArray, model: LLMModel, temp: Float = 0.0) {
+    public init(prompt: MLXArray, model: Model, temp: Float = 0.0) {
         self.model = model
         self.temp = temp
         self.y = prompt
@@ -85,10 +74,10 @@ public struct TokenIterator: Sequence, IteratorProtocol {
 ///
 /// Note that because MLXArray is not thread safe this eval's the result and sends the TokenId back
 /// to the caller.
-public func generate(prompt: MLXArray, model: LLMModel, temp: Float = 0.0) -> (
-    Task<Void, Never>, AsyncBufferSequence<AsyncChannel<Int>>
+public func generate(prompt: MLXArray, model: Model, temp: Float = 0.0) -> (
+    Task<Void, Never>, AsyncBufferSequence<AsyncChannel<TokenId>>
 ) {
-    let channel = AsyncChannel<Int>()
+    let channel = AsyncChannel<TokenId>()
     let buffer = channel.buffer(policy: .bounded(10))
 
     let task = Task {
@@ -102,7 +91,7 @@ public func generate(prompt: MLXArray, model: LLMModel, temp: Float = 0.0) -> (
             y = sample(logits: logits[-1, axis: 1], temp: temp)
             eval(y)
 
-            await channel.send(y.item(Int.self))
+            await channel.send(y.asType(TokenId.self).item())
         }
     }
 

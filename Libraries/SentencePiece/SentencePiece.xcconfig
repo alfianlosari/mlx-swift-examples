@@ -1,0 +1,4 @@
+HEADER_SEARCH_PATHS = /opt/homebrew/include
+LIBRARY_SEARCH_PATHS = /opt/homebrew/lib
+OTHER_LDFLAGS = -lsentencepiece
+SWIFT_OBJC_BRIDGING_HEADER = Libraries/SentencePiece/SentencePiece-Bridging.h

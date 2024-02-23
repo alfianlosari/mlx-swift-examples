@@ -1,6 +1,10 @@
-# MLX Swift Examples
+# mlx-examples-swift
 
-Example [mlx-swift](https://github.com/ml-explore/mlx-swift) programs.
+Example mlx-swift programs.
+
+## MLXChat
+
+A macOS SwiftUI Application for prompting LLM Model. The LLM Model text generation is run a different XPC Process so it won't affect UI performance of main App Process.
 
 ## LinearModelTraining
 
@@ -10,7 +14,7 @@ A simple linear model and a training loop.
 
 ## llm-tool
 
-A command line tool for generating text using a variety of Hugging Face models:
+A command line tool for generating text using a Llama / Mistral model:
 
 - [README](Tools/llm-tool/README.md)
 

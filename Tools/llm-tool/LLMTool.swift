@@ -2,7 +2,7 @@
 
 import ArgumentParser
 import Foundation
-import LLM
+import Llama
 import MLX
 import MLXRandom
 
@@ -14,21 +14,21 @@ struct LLMTool: AsyncParsableCommand {
 }
 
 @main
-struct SyncGenerator: AsyncParsableCommand {
+struct SyncGenerator: ParsableCommand {
 
     static var configuration = CommandConfiguration(
         commandName: "sync",
         abstract: "Synchronous generator"
     )
 
-    @Option(name: .long, help: "Name of the huggingface model")
-    var model: String = "mlx-community/Mistral-7B-v0.1-hf-4bit-mlx"
+    @Option(name: .long, help: "Path to the directory with the model and tokenizer weights")
+    var model: String
 
     @Option(name: .shortAndLong, help: "The message to be processed by the model")
-    var prompt = "compare swift and python"
+    var prompt = "hello"
 
     @Option(name: .shortAndLong, help: "Maximum number of tokens to generate")
-    var maxTokens = 100
+    var maxTokens = 10000
 
     @Option(name: .shortAndLong, help: "The sampling temperature")
     var temperature: Float = 0.0
@@ -36,11 +36,10 @@ struct SyncGenerator: AsyncParsableCommand {
     @Option(name: .long, help: "The PRNG seed")
     var seed: UInt64 = 0
 
-    @MainActor
-    func run() async throws {
+    func run() throws {
         MLXRandom.seed(seed)
 
-        let (model, tokenizer) = try await load(name: model)
+        let (model, tokenizer) = try load(modelDirectory: URL(filePath: model))
 
         print("Starting generation ...")
         print(prompt, terminator: "")
@@ -48,37 +47,25 @@ struct SyncGenerator: AsyncParsableCommand {
         var start = Date.timeIntervalSinceReferenceDate
         var promptTime: TimeInterval = 0
 
-        let prompt = MLXArray(tokenizer.encode(text: prompt))
+        let prompt = try MLXArray(tokenizer.encode(prompt))
 
-        // collect the tokens and keep track of how much of the string
-        // we have printed already
-        var tokens = [Int]()
-        var printed = 0
-
+        var ntok = 0
         for token in TokenIterator(prompt: prompt, model: model, temp: temperature) {
-            if tokens.isEmpty {
+            if ntok == 0 {
                 eval(token)
                 let now = Date.timeIntervalSinceReferenceDate
                 promptTime = now - start
                 start = now
             }
 
-            let t = token.item(Int.self)
-            if t == tokenizer.unknownTokenId {
-                break
-            }
-            tokens.append(t)
-
-            // print any new parts of the string
-            let fullOutput = tokenizer.decode(tokens: tokens)
-            let emitLength = fullOutput.count - printed
-            let suffix = fullOutput.suffix(emitLength)
-            print(suffix, terminator: "")
+            eval(token)
+            let ids = [token.asType(TokenId.self).item(TokenId.self)]
+            let s = try tokenizer.decode(ids)
+            print(s, terminator: "")
             fflush(stdout)
 
-            printed = fullOutput.count
-
-            if tokens.count == maxTokens {
+            ntok += ids.count
+            if ntok == maxTokens {
                 break
             }
         }
@@ -91,7 +78,7 @@ struct SyncGenerator: AsyncParsableCommand {
         print(
             """
             Prompt Tokens per second:     \((Double(prompt.size) / promptTime).formatted())
-            Generation tokens per second: \((Double(tokens.count - 1) / generateTime).formatted())
+            Generation tokens per second: \((Double(ntok - 1) / generateTime).formatted())
             """)
     }
 }
@@ -107,11 +94,11 @@ struct AsyncGenerator: AsyncParsableCommand {
         abstract: "async generator"
     )
 
-    @Option(name: .long, help: "Name of the huggingface model")
-    var model: String = "mlx-community/Mistral-7B-v0.1-hf-4bit-mlx"
+    @Option(name: .long, help: "Path to the directory with the model and tokenizer weights")
+    var model: String
 
     @Option(name: .shortAndLong, help: "The message to be processed by the model")
-    var prompt = "compare swift and python"
+    var prompt = "hello"
 
     @Option(name: .shortAndLong, help: "Maximum number of tokens to generate")
     var maxTokens = 100
@@ -122,11 +109,10 @@ struct AsyncGenerator: AsyncParsableCommand {
     @Option(name: .long, help: "The PRNG seed")
     var seed: UInt64 = 0
 
-    @MainActor
     func run() async throws {
         MLXRandom.seed(seed)
 
-        let (model, tokenizer) = try await load(name: model)
+        let (model, tokenizer) = try load(modelDirectory: URL(filePath: model))
 
         print("Starting generation ...")
         print(prompt, terminator: "")
@@ -134,37 +120,24 @@ struct AsyncGenerator: AsyncParsableCommand {
         var start = Date.timeIntervalSinceReferenceDate
         var promptTime: TimeInterval = 0
 
-        let prompt = MLXArray(tokenizer.encode(text: prompt))
-
-        // collect the tokens and keep track of how much of the string
-        // we have printed already
-        var tokens = [Int]()
-        var printed = 0
+        let prompt = try MLXArray(tokenizer.encode(prompt))
 
         let (task, channel) = generate(prompt: prompt, model: model, temp: temperature)
 
+        var ntok = 0
         for await token in channel {
-            if tokens.isEmpty {
+            if ntok == 0 {
                 let now = Date.timeIntervalSinceReferenceDate
                 promptTime = now - start
                 start = now
             }
 
-            if token == tokenizer.unknownTokenId {
-                break
-            }
-            tokens.append(token)
-
-            // print any new parts of the string
-            let fullOutput = tokenizer.decode(tokens: tokens)
-            let emitLength = fullOutput.count - printed
-            let suffix = fullOutput.suffix(emitLength)
-            print(suffix, terminator: "")
+            let s = try tokenizer.decode([token])
+            print(s, terminator: "")
             fflush(stdout)
 
-            printed = fullOutput.count
-
-            if tokens.count == maxTokens {
+            ntok += 1
+            if ntok == maxTokens {
                 break
             }
         }
@@ -180,7 +153,7 @@ struct AsyncGenerator: AsyncParsableCommand {
         print(
             """
             Prompt Tokens per second:     \((Double(prompt.size) / promptTime).formatted())
-            Generation tokens per second: \((Double(tokens.count - 1) / generateTime).formatted())
+            Generation tokens per second: \((Double(ntok - 1) / generateTime).formatted())
             """)
 
         // wait for the task to complete -- since it is running async, it might
