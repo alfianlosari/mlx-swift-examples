@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		8B58CB2E2B8959600078CEA4 /* HeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B58CB2D2B8959600078CEA4 /* HeaderView.swift */; };
 		8B7060802B877CA500B3284E /* MessageRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B70607F2B877CA500B3284E /* MessageRowView.swift */; };
 		8B7060822B877CC700B3284E /* MessageRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B7060812B877CC700B3284E /* MessageRow.swift */; };
 		8B7060842B877D0E00B3284E /* DotLoadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B7060832B877D0E00B3284E /* DotLoadingView.swift */; };
@@ -218,6 +219,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		8B58CB2D2B8959600078CEA4 /* HeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderView.swift; sourceTree = "<group>"; };
 		8B70607F2B877CA500B3284E /* MessageRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageRowView.swift; sourceTree = "<group>"; };
 		8B7060812B877CC700B3284E /* MessageRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageRow.swift; sourceTree = "<group>"; };
 		8B7060832B877D0E00B3284E /* DotLoadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DotLoadingView.swift; sourceTree = "<group>"; };
@@ -368,6 +370,7 @@
 				8B7A6B2C2B88411100CB45D5 /* PreferencePane.swift */,
 				8B70607F2B877CA500B3284E /* MessageRowView.swift */,
 				8B7060832B877D0E00B3284E /* DotLoadingView.swift */,
+				8B58CB2D2B8959600078CEA4 /* HeaderView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -900,6 +903,7 @@
 				8B7060882B877D4100B3284E /* ParserResult.swift in Sources */,
 				8B7060802B877CA500B3284E /* MessageRowView.swift in Sources */,
 				8B7060822B877CC700B3284E /* MessageRow.swift in Sources */,
+				8B58CB2E2B8959600078CEA4 /* HeaderView.swift in Sources */,
 				8BD9A1452B87666D00BB7769 /* MLXChatXPCServiceProtocol.swift in Sources */,
 				8BD9A1442B87661600BB7769 /* ViewModel.swift in Sources */,
 				8B7A6B2D2B88411100CB45D5 /* PreferencePane.swift in Sources */,
