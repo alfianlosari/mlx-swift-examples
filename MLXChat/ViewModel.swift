@@ -13,14 +13,18 @@ class ViewModel: NSObject, MLXChatClientProtocol {
     
     private var _connection: NSXPCConnection!
     var messages: [MessageRow] = []
-    var model: URL? {
-        didSet {
-            guard let model else { return }
-            UserDefaults.standard.setValue(model.absoluteString, forKey: "model")
-        }
-    }
     var inputMessage = ""
     var isPrompting = false
+    
+    var model: URL? {
+        didSet {
+            if let model = model {
+                UserDefaults.standard.setValue(model.absoluteString, forKey: "model")
+            } else {
+                UserDefaults.standard.setValue(nil, forKey: "model")
+            }
+        }
+    }
     
     var maxTokens: Float = 250 {
         didSet {
@@ -49,43 +53,9 @@ class ViewModel: NSObject, MLXChatClientProtocol {
         self.temperature =  UserDefaults.standard.value(forKey: "temperature") as? Double ?? 0.5
         self.seed =  UserDefaults.standard.value(forKey: "seed") as? Double ?? Double.random(in: 0...99999)
         super.init()
-
     }
     
-    private func establishConnection() -> Void {
-        _connection = NSXPCConnection(serviceName: xpcServiceLabel)
-        _connection.remoteObjectInterface = NSXPCInterface(with: MLXChatXPCServiceProtocol.self)
-
-        _connection.exportedObject = self
-        _connection.exportedInterface = NSXPCInterface(with: MLXChatClientProtocol.self)
-
-        _connection.interruptionHandler = {
-          NSLog("connection to XPC service has been interrupted")
-        }
-        _connection.invalidationHandler = {
-          NSLog("connection to XPC service has been invalidated")
-          self._connection = nil
-        }
-        _connection.resume()
-
-        NSLog("successfully connected to XPC service")
-    }
-
-    public func xpcService() -> MLXChatXPCServiceProtocol {
-        if _connection == nil {
-            NSLog("no connection to XPC service")
-            establishConnection()
-        }
-        
-        return _connection.remoteObjectProxyWithErrorHandler { err in
-            print(err)
-        } as! MLXChatXPCServiceProtocol
-    }
-    
-    func invalidateConnection() -> Void {
-        guard _connection != nil else { NSLog("no connection to invalidate"); return }
-        _connection.invalidate()
-    }
+    // MARK: Methods
     
     func prompt(_ prompt: String) {
         let text = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -109,8 +79,6 @@ class ViewModel: NSObject, MLXChatClientProtocol {
             messageRow.responseError = "Please select a folder containing the LocalLLM model first. You can get it from https://huggingface.co/mlx-community"
             return
         }
-        
-        
         
         xpcService().prompt(text: text, model: model.absoluteString, maxTokens: Int(maxTokens), temperature: Float(temperature), seed: UInt64(seed)) { error in
             DispatchQueue.main.async { [unowned self] in
@@ -168,4 +136,40 @@ class ViewModel: NSObject, MLXChatClientProtocol {
         self.messages[self.messages.count - 1] = messageRow
     }
     
+    // MARK: XPC
+    private func establishConnection() -> Void {
+        _connection = NSXPCConnection(serviceName: xpcServiceLabel)
+        _connection.remoteObjectInterface = NSXPCInterface(with: MLXChatXPCServiceProtocol.self)
+
+        _connection.exportedObject = self
+        _connection.exportedInterface = NSXPCInterface(with: MLXChatClientProtocol.self)
+
+        _connection.interruptionHandler = {
+          NSLog("connection to XPC service has been interrupted")
+        }
+        _connection.invalidationHandler = {
+          NSLog("connection to XPC service has been invalidated")
+          self._connection = nil
+        }
+        _connection.resume()
+
+        NSLog("successfully connected to XPC service")
+    }
+
+    private func xpcService() -> MLXChatXPCServiceProtocol {
+        if _connection == nil {
+            NSLog("no connection to XPC service")
+            establishConnection()
+        }
+        
+        return _connection.remoteObjectProxyWithErrorHandler { err in
+            print(err)
+        } as! MLXChatXPCServiceProtocol
+    }
+    
+    private func invalidateConnection() -> Void {
+        guard _connection != nil else { NSLog("no connection to invalidate"); return }
+        _connection.invalidate()
+    }
+
 }
