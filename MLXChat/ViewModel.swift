@@ -13,14 +13,44 @@ class ViewModel: NSObject, MLXChatClientProtocol {
     
     private var _connection: NSXPCConnection!
     var messages: [MessageRow] = []
-    var model: URL? // URL(string: "file://Users/alfianlosari/Mistral-7B-v0.1-hf-4bit-mlx")!
+    var model: URL? {
+        didSet {
+            guard let model else { return }
+            UserDefaults.standard.setValue(model.absoluteString, forKey: "model")
+        }
+    }
     var inputMessage = ""
     var isPrompting = false
-    var maxTokens: Float = 250
-    var temperature = 0.5
-    var seed: Double = Double.random(in: 0...99999)
     
-    func doSomething() {}
+    var maxTokens: Float = 250 {
+        didSet {
+            UserDefaults.standard.set(maxTokens, forKey: "maxTokens")
+        }
+    }
+    
+    var temperature = 0.5 {
+        didSet {
+            UserDefaults.standard.set(temperature, forKey: "temperature")
+        }
+    }
+    
+    var seed: Double = Double.random(in: 0...99999) {
+        didSet {
+            UserDefaults.standard.set(seed, forKey: "seed")
+        }
+    }
+    
+    override init() {
+        if let model = UserDefaults.standard.value(forKey: "model") as? String, let url = URL(string: model)  {
+            self.model = url
+        }
+        
+        self.maxTokens =  UserDefaults.standard.value(forKey: "maxTokens") as? Float ?? 250
+        self.temperature =  UserDefaults.standard.value(forKey: "temperature") as? Double ?? 0.5
+        self.seed =  UserDefaults.standard.value(forKey: "seed") as? Double ?? Double.random(in: 0...99999)
+        super.init()
+
+    }
     
     private func establishConnection() -> Void {
         _connection = NSXPCConnection(serviceName: xpcServiceLabel)
