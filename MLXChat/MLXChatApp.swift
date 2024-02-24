@@ -21,6 +21,9 @@ struct MLXChatApp: App {
             }.frame(width: 500)
         }
         .windowResizability(.contentSize)
+        .commands {
+            CommandGroup(replacing: .newItem) {}
+        }
         
 //        MenuBarExtra("XCA MLX Chat", systemImage: "bubbles.and.sparkles") {
 //            VStack(spacing: 16) {
